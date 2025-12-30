@@ -1,6 +1,6 @@
 {
   "name": "doc-mcpify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A framework that allows API providers to expose a fully compliant MCP server without writing MCP-specific code",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
