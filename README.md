@@ -1,15 +1,45 @@
 # doc-mcp
 
-A framework that allows API providers to expose a fully compliant MCP (Machine-Consumable Protocol) server without writing MCP-specific code. Install, configure, enable — no protocol knowledge required.
+**Make your documentation queryable by AI assistants like Copilot and Cursor.**
+
+Turn your docs, APIs, and source code into an MCP server in 3 lines of code. No protocol knowledge required.
+
+## Why Use This?
+
+If you have a **UI library**, **API**, or **SDK**, developers can now ask AI:
+- _"Show me the Button component code"_
+- _"How do I use the Modal?"_
+- _"Get the useAuth hook example"_
+
+Instead of searching through docs, **AI fetches the exact code** they need from your MCP server.
+
+## What It Does
+
+```typescript
+// Your docs + code
+docs/
+  ├── button.md          // Markdown docs
+  ├── modal.md
+src/
+  ├── components/
+  │   └── Button.tsx     // Source code
+  └── hooks/
+      └── useAuth.ts
+
+// Becomes queryable by AI
+👇
+await docmcp({ docs: ['./docs/**/*.md', './src/**/*.{ts,tsx}'] });
+// ✅ Copilot can now query your docs + code!
+```
 
 ## Features
 
-- 🚀 **Zero Protocol Knowledge Required** - Just point to your docs, get an MCP server
-- 📄 **Multiple Doc Formats** - OpenAPI (2.0/3.x), Markdown, or mix them
-- 🔌 **Framework Agnostic** - Works with Express, Fastify, or standalone
-- 🎯 **Type Safe** - Full TypeScript support with comprehensive types
-- 🔧 **Configurable** - Control visibility, auth, and metadata
-- 📦 **CLI Included** - Quick server startup from command line
+- **AI-Queryable** - Copilot/Cursor can search your docs and code
+- **Multiple Formats** - Markdown, OpenAPI, TypeScript/JavaScript
+- **Smart Parsing** - Extracts functions, types, JSDoc, code examples
+- **Glob Patterns** - Scan entire directories automatically
+- **Zero Config** - 3 lines to get started
+- **Framework Agnostic** - Express, Fastify, or standalone
 
 ## Installation
 
@@ -17,65 +47,158 @@ A framework that allows API providers to expose a fully compliant MCP (Machine-C
 npm install doc-mcp
 ```
 
-## Quick Start
+## Quick Start (3 Steps)
 
-### With Express
+### Step 1: Install
 
-```typescript
+```bash
+npm install doc-mcpify
+```
+
+### Step 2: Create MCP Server
+
+Create `mcp-server.mjs` in your project:
+
+```javascript
+import docmcp from 'doc-mcpify';
+
+await docmcp({
+  docs: [
+    './docs/**/*.md',           // All markdown files
+    './src/components/**/*.tsx', // React components
+    './src/hooks/**/*.ts',       // Custom hooks
+  ],
+  standalone: true,
+  port: 3001,
+});
+
+await docmcp.listen();
+console.log('✅ MCP Server running on http://localhost:3001');
+```
+
+### Step 3: Connect to VS Code
+
+Add to your `.vscode/settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "my-docs": {
+      "command": "node",
+      "args": ["./mcp-server.mjs"]
+    }
+  }
+}
+```
+
+**Done!** Reload VS Code and Copilot can now query your docs.
+
+## Try It
+
+Ask Copilot:
+- _"Show me how to use the Button component"_
+- _"Get the Modal props"_
+-  What Gets Parsed?
+
+### From Markdown Files
+
+```markdown
+# Button Component
+
+## Usage
+\`\`\`tsx
+<Button variant="primary">Click me</Button>
+\`\`\`
+```
+
+**Extracted:**
+- Component name
+- Code examples
+- Usage instructions
+- KIntegration Options
+
+### Option 1: Standalone (Recommended)
+
+Perfect for documentation sites:
+
+```javascript
+import docmcp from 'doc-mcpify';
+
+await docmcp({
+  docs: ['./docs/**/*.md', './src/**/*.tsx'],
+  standalone: true,
+  port: 3001,
+});
+```
+
+### Option 2: With Express
+
+Add to existing Express app:
+
+```javascript
 import express from 'express';
-import docmcp from 'doc-mcp';
+import docmcp from 'doc-mcpify';
 
 const app = express();
 
 await docmcp(app, {
-  docs: './openapi.yaml',
-  basePath: '/mcp'
+  docs: './docs/**/*.md',
+  basePath: '/mcp',
 });
 
-app.listen(3000, () => {
-  console.log('Server with MCP endpoints running on http://localhost:3000');
-});
+app.listen(3000);
 ```
 
-### With Fastify
+### Option 3: With Fastify
 
-```typescript
+```javascript
 import Fastify from 'fastify';
-import docmcp from 'doc-mcp';
+import docmcp from 'doc-mcpify';
 
 const fastify = Fastify();
 
 await docmcp(fastify, {
-  docs: './openapi.yaml',
-  basePath: '/mcp'
+  docs: './docs/**/*.md',
 });
 
 fastify.listen({ port: 3000 });
 ```
 
-### Standalone Server
+## MCP Endpoints (Auto-Created)
 
-```typescript
-import docmcp from 'doc-mcp';
+| Endpoint | What Copilot Gets |
+|----------|-------------------|
+| `/mcp/describe` | Your API/library overview |
+| `/mcp/resources` | **All your docs + code examples** ⭐ |
+| `/mcp/endpoints` | API endpoint list (if OpenAPI) |
+| `/mcp/schemas` | Type definition
+}
 
-const mcp = await docmcp({
-  docs: './openapi.yaml',
-  basePath: '/mcp',
-  standalone: true,
-  port: 3000
-});
-
-await mcp.listen();
+export interface ButtonProps {
+  variant?: 'primary' | 'secondary';
+}
 ```
 
-### CLI
+**Extracted:**
+- Exported functions/components
+- JSDoc comments
+- TypeScript interfaces/types
+- Function signatures
 
-```bash
-# Start a server
-doc-mcp serve ./openapi.yaml --port 3000
+### From OpenAPI Specs
 
-# Validate documentation
-doc-mcp validate ./openapi.yaml
+```yaml
+paths:
+  /users/{id}:
+    get:
+      summary: Get user by ID
+```
+
+**Extracted:**
+- API endpoints
+- Parameters
+- Request/response schemas
+- Authentication requirements-mcp validate ./openapi.yaml
 
 # Inspect parsed documentation
 doc-mcp inspect ./openapi.yaml
@@ -107,17 +230,49 @@ Once mounted, doc-mcp exposes the following endpoints:
   "documentation": {
     "type": "openapi",
     "sources": ["./openapi.yaml"]
+  }Common Use Cases
+
+### UI Library Documentation
+
+```javascript
+await docmcp({
+  docs: [
+    './docs/**/*.md',              // Markdown docs
+    './src/components/**/*.tsx',   // Component code
+    './src/hooks/**/*.ts',         // Custom hooks
+  ],
+  standalone: true,
+  port: 3001,
+  metadata: {
+    title: 'My UI Library',
+    description: 'Reusable React components',
   },
-  "generatedAt": "2024-01-01T00:00:00.000Z"
-}
+});
 ```
 
-#### GET /mcp/endpoints
+### API Documentation
 
-```json
-{
-  "endpoints": [
-    {
+```javascript
+await docmcp({
+  docs: [
+    './openapi.yaml',    // API spec
+    './guides/*.md',     // User guides
+  ],
+  standalone: true,
+  port: 3001,
+});
+```
+
+### SDK Documentation
+
+```javascript
+await docmcp({
+  docs: [
+    './README.md',
+    './docs/**/*.md',
+    './src/**/*.ts',     // All TypeScript files
+  ],
+  standalone: true, {
       "method": "GET",
       "path": "/users/{id}",
       "operationId": "getUser",
@@ -131,36 +286,44 @@ Once mounted, doc-mcp exposes the following endpoints:
         }
       ],
       "responses": [
-        { "statusCode": 200, "description": "Successful response" }
-      ]
+   Testing Your MCP Server
+
+### 1. Start the server
+
+```bash
+node mcp-server.mjs
+```
+
+### 2. Test in browser
+
+```
+http://localhost:3001/mcp/resources?search=button
+```
+
+Should return your Button docs/code.
+
+### 3. Connect to VS Code
+
+Add to `.vscode/settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "my-docs": {
+      "command": "node",
+      "args": ["./mcp-server.mjs"]
     }
-  ],
-  "count": 1,
-  "tags": ["users"]
+  }
 }
 ```
 
-## Configuration
+Reload VS Code (Ctrl+Shift+P → "Reload Window")
 
-```typescript
-interface DocMcpConfig {
-  // Required: Path or URL to documentation
-  docs: string | string[];
+### 4. Query with Copilot
 
-  // Base path for MCP endpoints (default: '/mcp')
-  basePath?: string;
+Ask: _"Show me the Button component from my-docs"_
 
-  // Authentication configuration
-  auth?: {
-    type: 'none' | 'apiKey' | 'bearer' | 'basic' | 'oauth2';
-    name?: string;        // Header/param name for apiKey
-    in?: 'header' | 'query' | 'cookie';
-    description?: string;
-    oauth2?: {
-      authorizationUrl?: string;
-      tokenUrl?: string;
-      scopes?: Record<string, string>;
-    };
+If it works, Copilot will return your Button code! 🎉 };
   };
 
   // Visibility control
@@ -201,24 +364,49 @@ Configuration can also be set via environment variables:
 Combine multiple documentation files:
 
 ```typescript
-await docmcp(app, {
+awaAdvanced Configuration
+
+```javascript
+await docmcp({
   docs: [
-    './openapi.yaml',    // Main API spec
-    './webhooks.md',     // Webhook documentation
-    './guides.md'        // Additional guides
-  ]
+    './docs/**/*.md',
+    './src/**/*.{ts,tsx,js,jsx}',
+  ],
+  
+  // Base path for endpoints
+  basePath: '/mcp',
+  
+  // Filter what gets exposed
+  visibility: {
+    include: ['./src/components/**/*'],
+    exclude: ['**/*.test.*', '**/__tests__/**'],
+  },
+  
+  // Metadata override
+  metadata: {
+    title: 'My Library',
+    version: '2.0.0',
+    description: 'Library documentation',
+  },
+  
+  // Enable logging
+  verbose: true,
+  
+  // Standalone server options
+  standalone: true,
+  port: 3001,
+  host: '0.0.0.0',
 });
 ```
 
-## Filtering Endpoints
+## Supported File Types
 
-Control which endpoints are exposed:
-
-```typescript
-await docmcp(app, {
-  docs: './openapi.yaml',
-  visibility: {
-    // Only include certain paths
+| Type | Extensions | What Gets Extracted |
+|------|-----------|---------------------|
+| **Markdown** | `.md`, `.mdx` | Code blocks, headings, content |
+| **TypeScript** | `.ts`, `.tsx` | Exports, JSDoc, types, interfaces |
+| **JavaScript** | `.js`, `.jsx`, `.mjs` | Exports, JSDoc, functions |
+| **OpenAPI** | `.yaml`, `.yml`, `.json` | Endpoints, schemas, auth | // Only include certain paths
     include: ['/api/v1/*', '/public/*'],
     
     // Exclude internal endpoints
@@ -245,77 +433,77 @@ GET /mcp/endpoints?deprecated=false  # Exclude deprecated
 
 Access the parsed schema programmatically:
 
-```typescript
-const mcp = await docmcp(app, { docs: './openapi.yaml' });
+```Real-World Examples
 
-// Get the normalized schema
-const schema = mcp.getSchema();
-console.log(schema.endpoints.length);
+### Example 1: Component Library
 
-// Get handlers for custom routing
-const handlers = mcp.getHandlers();
-const description = handlers.describe();
+```javascript
+// mcp-server.mjs
+import docmcp from 'doc-mcpify';
 
-// Reload documentation
-await mcp.reload();
-```
-
-## Custom Parsers
-
-Add support for additional documentation formats:
-
-```typescript
-await docmcp(app, {
-  docs: './custom-format.xml',
-  parsers: [{
-    extensions: ['.xml'],
-    parse: async (content, filePath) => {
-      // Parse your custom format
-      return {
-        metadata: { title: 'My API' },
-        endpoints: [...],
-        schemas: {},
-        auth: {}
-      };
-    }
-  }]
+await docmcp({
+  docs: [
+    './README.md',
+    './docs/**/*.md',
+    './src/components/**/*.tsx',
+    './src/hooks/**/*.ts',
+  ],
+  metadata: {
+    title: 'Acme UI Components',
+    description: 'React component library for Acme Corp',
+  },
+  standalone: true,
+  port: 3001,
 });
 ```
 
-## Express Middleware
+**Copilot can now answer:**
+- "Show Acme Button component"
+- "How to use Acme Modal?"
+- "Get Acme useTheme hook code"
 
-Use as middleware instead of direct mounting:
+### Example 2: REST API
 
-```typescript
-import { createExpressMiddleware, parseAllDocumentation, normalizeSchema, resolveConfig } from 'doc-mcp';
+```javascript
+import docmcp from 'doc-mcpify';
 
-const config = resolveConfig({ docs: './openapi.yaml' });
-const parseResult = await parseAllDocumentation(config.docs, config, logger);
-const schema = normalizeSchema(parseResult, config, config.docs, logger);
-
-app.use(createExpressMiddleware(schema, config));
+await docmcp({
+  docs: [
+    './openapi.yaml',
+    './docs/getting-started.md',
+    './docs/authentication.md',
+  ],
+  standalone: true,
+  port: 3001,
+});
 ```
 
-## Fastify Plugin
+**Copilot can query:**
+- API endpoints
+- Authentication flow
+- Request/response examples
 
-Use as a Fastify plugin:
+## Troubleshooting
 
-```typescript
-import { createFastifyPlugin, parseAllDocumentation, normalizeSchema, resolveConfig } from 'doc-mcp';
+### MCP server not connecting?
 
-const config = resolveConfig({ docs: './openapi.yaml' });
-const parseResult = await parseAllDocumentation(config.docs, config, logger);
-const schema = normalizeSchema(parseResult, config, config.docs, logger);
+1. Check the server is running: `node mcp-server.mjs`
+2. Verify port is correct in VS Code settings
+3. Try reloading VS Code window
+4. Check for errors in terminal
 
-fastify.register(createFastifyPlugin(schema, config));
-```
+### Copilot not finding my docs?
 
-## CLI Reference
+1. Test endpoint: `http://localhost:3001/mcp/resources`
+2. Should return JSON with your docs
+3. Try searching: `http://localhost:3001/mcp/resources?search=yourterm`
+4. Check file paths in docs array are correct
 
-```
-doc-mcp - MCP Server for API Documentation
+### TypeScript files not parsing?
 
-Usage:
+- Make sure file matches glob pattern
+- Check syntax is valid (run `tsc --noEmit`)
+- Enable `verbose: true` to see parsing logsge:
   doc-mcp serve <docs> [options]   Start an MCP server
   doc-mcp validate <docs>          Validate documentation files
   doc-mcp inspect <docs>           Inspect and display parsed documentation
@@ -349,9 +537,33 @@ Markdown files are parsed for API documentation patterns:
 Version: 1.0.0
 Base URL: https://api.example.com
 
-## Authentication
+## API Reference
 
-This API uses Bearer token authentication.
+Full TypeScript types exported:
+
+```typescript
+import type {
+  DocMcpConfig,
+  DocMcpInstance,
+  DocResource,
+  CodeExample,
+  NormalizedSchema,
+} from 'doc-mcpify';
+```
+
+See [examples/](./examples/) for more usage patterns.
+
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## License
+
+MIT
+
+---
+
+**Made with ❤️ for developers who want AI to understand their docs**s API uses Bearer token authentication.
 Add the Authorization header: `Authorization: Bearer your-token`
 
 ## Endpoints

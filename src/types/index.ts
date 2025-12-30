@@ -220,6 +220,8 @@ export interface NormalizedSchema {
   schemas: Record<string, JsonSchema>;
   /** Authentication information */
   auth: AuthInfo;
+  /** Documentation resources (from markdown) */
+  resources: DocResource[];
   /** Raw source information */
   source: {
     type: 'openapi' | 'markdown' | 'mixed';
@@ -373,6 +375,50 @@ export interface McpAuthResponse {
   instructions: string;
 }
 
+/**
+ * Response for /mcp/resources endpoint
+ * Serves documentation as queryable resources for Copilot/Cursor
+ */
+export interface McpResourcesResponse {
+  resources: DocResource[];
+  count: number;
+  categories: string[];
+}
+
+/**
+ * A documentation resource (extracted from markdown files)
+ */
+export interface DocResource {
+  /** Unique resource ID */
+  id: string;
+  /** Resource name (e.g., "Button", "Modal", "useAuth") */
+  name: string;
+  /** Resource category/tag (e.g., "components", "hooks", "api") */
+  category: string;
+  /** Short description */
+  summary?: string;
+  /** Full content/documentation */
+  content: string;
+  /** Code examples extracted from the doc */
+  codeExamples: CodeExample[];
+  /** Source file path */
+  source: string;
+  /** Keywords for search */
+  keywords: string[];
+}
+
+/**
+ * A code example from documentation
+ */
+export interface CodeExample {
+  /** Language of the code (js, ts, python, etc.) */
+  language: string;
+  /** The actual code */
+  code: string;
+  /** Optional title/description */
+  title?: string;
+}
+
 
 // Parser Types
 
@@ -385,6 +431,8 @@ export interface ParseResult {
   endpoints: Partial<EndpointSchema>[];
   schemas: Record<string, JsonSchema>;
   auth: Partial<AuthInfo>;
+  /** Documentation resources extracted from markdown */
+  resources?: DocResource[];
 }
 
 /**
@@ -477,6 +525,7 @@ export interface McpHandlers {
   schemas: () => McpSchemasResponse;
   endpoints: (query?: { tag?: string; method?: string; path?: string; deprecated?: boolean }) => McpEndpointsResponse;
   auth: () => McpAuthResponse;
+  resources: (query?: { category?: string; search?: string; name?: string }) => McpResourcesResponse;
 }
 
 /**

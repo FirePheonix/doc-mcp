@@ -12,8 +12,10 @@ import type {
   McpSchemasResponse,
   McpEndpointsResponse,
   McpAuthResponse,
+  McpResourcesResponse,
   McpHandlers,
   EndpointSchema,
+  DocResource,
 } from '../types';
 
 
@@ -32,6 +34,7 @@ export function createMcpHandlers(
     schemas: () => handleSchemas(schema),
     endpoints: (query) => handleEndpoints(schema, query),
     auth: () => handleAuth(schema),
+    resources: (query) => handleResources(schema, query),
   };
 }
 
@@ -179,6 +182,84 @@ function handleAuth(schema: NormalizedSchema): McpAuthResponse {
   };
 }
 
+
+// /mcp/resources Handler
+
+
+interface ResourcesQuery {
+  category?: string;
+  search?: string;
+  name?: string;
+}
+
+/**
+ * Handle GET /mcp/resources
+ * Returns documentation resources for querying by Copilot/Cursor
+ */
+function handleResources(
+  schema: NormalizedSchema,
+  query?: ResourcesQuery
+): McpResourcesResponse {
+  let resources = schema.resources || [];
+  
+  // Apply filters if provided
+  if (query) {
+    resources = filterResources(resources, query);
+  }
+  
+  // Collect unique categories
+  const categories = new Set<string>();
+  for (const resource of schema.resources || []) {
+    categories.add(resource.category);
+  }
+  
+  return {
+    resources,
+    count: resources.length,
+    categories: Array.from(categories).sort(),
+  };
+}
+
+/**
+ * Filter resources based on query parameters
+ */
+function filterResources(
+  resources: DocResource[],
+  query: ResourcesQuery
+): DocResource[] {
+  return resources.filter(resource => {
+    // Filter by category
+    if (query.category) {
+      if (resource.category !== query.category) {
+        return false;
+      }
+    }
+    
+    // Filter by name (case-insensitive partial match)
+    if (query.name) {
+      const searchName = query.name.toLowerCase();
+      if (!resource.name.toLowerCase().includes(searchName)) {
+        return false;
+      }
+    }
+    
+    // Filter by search term (searches name, summary, keywords)
+    if (query.search) {
+      const searchTerm = query.search.toLowerCase();
+      const matchesName = resource.name.toLowerCase().includes(searchTerm);
+      const matchesSummary = resource.summary?.toLowerCase().includes(searchTerm);
+      const matchesKeywords = resource.keywords.some(k => k.includes(searchTerm));
+      const matchesContent = resource.content.toLowerCase().includes(searchTerm);
+      
+      if (!matchesName && !matchesSummary && !matchesKeywords && !matchesContent) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+}
+
 /**
  * Generate human-readable authentication instructions
  */
@@ -277,6 +358,12 @@ export function getMcpRoutes(basePath: string): Array<{
       path: normalize('/auth'),
       handler: 'auth',
       description: 'Authentication requirements and headers',
+    },
+    {
+      method: 'GET',
+      path: normalize('/resources'),
+      handler: 'resources',
+      description: 'Documentation resources with code examples (queryable by Copilot/Cursor)',
     },
   ];
 }

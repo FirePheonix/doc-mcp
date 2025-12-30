@@ -6,8 +6,10 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { glob } from 'glob';
 import { parseOpenAPI, isOpenAPIFile, isOpenAPIContent } from './openapi';
 import { parseMarkdown, isMarkdownFile } from './markdown';
+import { parseTypeScript, isTypeScriptFile } from './typescript';
 import type { ParseResult, ResolvedConfig, CustomParser, Logger } from '../types';
 
 
@@ -23,6 +25,11 @@ export async function parseDocumentation(
   logger: Logger
 ): Promise<ParseResult> {
   logger.debug(`Parsing documentation source: ${source}`);
+  
+  // Check if source is a glob pattern
+  if (isGlobPattern(source)) {
+    return parseGlobPattern(source, config, logger);
+  }
   
   // Check custom parsers first
   for (const parser of config.parsers) {
@@ -92,6 +99,12 @@ async function parseFromFile(
     return parseOpenAPI(absolutePath);
   }
   
+  if (isTypeScriptFile(absolutePath)) {
+    logger.debug(`Parsing as TypeScript/JavaScript: ${absolutePath}`);
+    const content = await fs.readFile(absolutePath, 'utf-8');
+    return parseTypeScript(content, absolutePath);
+  }
+  
   if (isMarkdownFile(absolutePath)) {
     logger.debug(`Parsing as Markdown: ${absolutePath}`);
     const content = await fs.readFile(absolutePath, 'utf-8');
@@ -147,6 +160,62 @@ async function parseFromURL(
 }
 
 
+// Glob Pattern Parsing
+
+
+/**
+ * Check if a source string contains glob patterns
+ */
+function isGlobPattern(source: string): boolean {
+  return source.includes('*') || source.includes('?') || source.includes('{');
+}
+
+/**
+ * Parse multiple files matching a glob pattern
+ */
+async function parseGlobPattern(
+  pattern: string,
+  config: ResolvedConfig,
+  logger: Logger
+): Promise<ParseResult> {
+  logger.debug(`Expanding glob pattern: ${pattern}`);
+  
+  // Find all matching files
+  const files = await glob(pattern, { 
+    nodir: true,
+    absolute: true,
+    cwd: process.cwd(),
+  });
+  
+  if (files.length === 0) {
+    logger.warn(`No files matched pattern: ${pattern}`);
+    return {
+      metadata: {},
+      endpoints: [],
+      schemas: {},
+      auth: {},
+      resources: [],
+    };
+  }
+  
+  logger.info(`Found ${files.length} files matching pattern: ${pattern}`);
+  
+  // Parse each file
+  const results: ParseResult[] = [];
+  for (const file of files) {
+    try {
+      const result = await parseFromFile(file, config, logger);
+      results.push(result);
+      logger.debug(`Parsed: ${file}`);
+    } catch (error) {
+      logger.error(`Failed to parse ${file}:`, error);
+    }
+  }
+  
+  return mergeParseResults(results);
+}
+
+
 // Result Merging
 
 
@@ -160,6 +229,7 @@ function mergeParseResults(results: ParseResult[]): ParseResult {
       endpoints: [],
       schemas: {},
       auth: {},
+      resources: [],
     };
   }
   
@@ -175,6 +245,7 @@ function mergeParseResults(results: ParseResult[]): ParseResult {
     auth: {
       schemes: {},
     },
+    resources: [],
   };
   
   for (const result of results) {
@@ -207,6 +278,11 @@ function mergeParseResults(results: ParseResult[]): ParseResult {
     if (result.auth.description && !merged.auth.description) {
       merged.auth.description = result.auth.description;
     }
+    
+    // Merge resources (documentation)
+    if (result.resources) {
+      merged.resources!.push(...result.resources);
+    }
   }
   
   // Deduplicate servers
@@ -215,6 +291,16 @@ function mergeParseResults(results: ParseResult[]): ParseResult {
     merged.metadata.servers = merged.metadata.servers.filter(server => {
       if (seen.has(server.url)) return false;
       seen.add(server.url);
+      return true;
+    });
+  }
+  
+  // Deduplicate resources by ID
+  if (merged.resources) {
+    const seenIds = new Set<string>();
+    merged.resources = merged.resources.filter(resource => {
+      if (seenIds.has(resource.id)) return false;
+      seenIds.add(resource.id);
       return true;
     });
   }
@@ -251,3 +337,4 @@ async function readSource(source: string): Promise<string> {
 // Re-export individual parsers for direct use
 export { parseOpenAPI, isOpenAPIFile, isOpenAPIContent } from './openapi';
 export { parseMarkdown, isMarkdownFile } from './markdown';
+export { parseTypeScript, isTypeScriptFile } from './typescript';

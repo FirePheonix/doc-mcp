@@ -16,6 +16,8 @@ import type {
   ParameterSchema,
   JsonSchema,
   AuthInfo,
+  DocResource,
+  CodeExample,
 } from '../types';
 
 
@@ -49,8 +51,9 @@ export async function parseMarkdown(content: string, filePath: string): Promise<
   const endpoints = extractEndpointsFromMarkdown(sections);
   const schemas = extractSchemasFromMarkdown(sections);
   const auth = extractAuthFromMarkdown(sections);
+  const resources = extractResourcesFromMarkdown(sections, filePath);
   
-  return { metadata, endpoints, schemas, auth };
+  return { metadata, endpoints, schemas, auth, resources };
 }
 
 
@@ -511,6 +514,226 @@ function extractAuthFromMarkdown(sections: MarkdownSection[]): Partial<AuthInfo>
   }
   
   return auth;
+}
+
+
+// Resource Extraction (for documentation queries)
+
+
+/**
+ * Extract documentation resources from markdown sections
+ * This allows Copilot/Cursor to query documentation content
+ */
+function extractResourcesFromMarkdown(sections: MarkdownSection[], filePath: string): DocResource[] {
+  const resources: DocResource[] = [];
+  const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.(md|markdown|mdx)$/i, '') || 'doc';
+  
+  for (const section of flattenSections(sections)) {
+    // Skip preamble and very short sections
+    if (section.title === '_preamble' || section.level === 0) continue;
+    if (section.content.length === 0 && section.codeBlocks.length === 0) continue;
+    
+    // Create resource from each meaningful section
+    const resource = createResourceFromSection(section, filePath, fileName);
+    if (resource) {
+      resources.push(resource);
+    }
+  }
+  
+  // Also create a root resource for the entire file
+  const firstSection = sections.find(s => s.level === 1);
+  if (firstSection) {
+    const rootResource: DocResource = {
+      id: `${fileName}`,
+      name: firstSection.title || fileName,
+      category: detectCategory(filePath, firstSection.title),
+      summary: firstSection.content.slice(0, 2).join(' ').substring(0, 200),
+      content: sectionsToContent(sections),
+      codeExamples: extractAllCodeExamples(sections),
+      source: filePath,
+      keywords: extractKeywords(sections),
+    };
+    resources.unshift(rootResource);
+  }
+  
+  return resources;
+}
+
+/**
+ * Create a DocResource from a markdown section
+ */
+function createResourceFromSection(
+  section: MarkdownSection,
+  filePath: string,
+  fileName: string
+): DocResource | null {
+  // Only create resources for level 2 and 3 sections (## and ###)
+  if (section.level < 2 || section.level > 3) return null;
+  
+  const codeExamples: CodeExample[] = section.codeBlocks.map((block, index) => ({
+    language: block.lang || 'text',
+    code: block.value,
+    title: section.children[index]?.title || undefined,
+  }));
+  
+  // Include children's code blocks too
+  for (const child of section.children) {
+    for (const block of child.codeBlocks) {
+      codeExamples.push({
+        language: block.lang || 'text',
+        code: block.value,
+        title: child.title || undefined,
+      });
+    }
+  }
+  
+  const id = `${fileName}-${section.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const content = [
+    section.content.join('\n'),
+    ...section.children.map(c => `### ${c.title}\n${c.content.join('\n')}`),
+  ].join('\n\n');
+  
+  return {
+    id,
+    name: section.title,
+    category: detectCategory(filePath, section.title),
+    summary: section.content.slice(0, 2).join(' ').substring(0, 200),
+    content,
+    codeExamples,
+    source: filePath,
+    keywords: extractSectionKeywords(section),
+  };
+}
+
+/**
+ * Detect the category/type of documentation
+ */
+function detectCategory(filePath: string, title: string): string {
+  const lowerPath = filePath.toLowerCase();
+  const lowerTitle = title.toLowerCase();
+  
+  // Check path for category hints
+  if (lowerPath.includes('component')) return 'components';
+  if (lowerPath.includes('hook')) return 'hooks';
+  if (lowerPath.includes('api')) return 'api';
+  if (lowerPath.includes('guide')) return 'guides';
+  if (lowerPath.includes('tutorial')) return 'tutorials';
+  if (lowerPath.includes('example')) return 'examples';
+  if (lowerPath.includes('util')) return 'utilities';
+  
+  // Check title for hints
+  if (lowerTitle.startsWith('use')) return 'hooks';
+  if (/^[A-Z][a-z]+(?:[A-Z][a-z]+)*$/.test(title)) return 'components'; // PascalCase
+  if (lowerTitle.includes('install')) return 'getting-started';
+  if (lowerTitle.includes('config')) return 'configuration';
+  
+  return 'documentation';
+}
+
+/**
+ * Extract keywords from all sections
+ */
+function extractKeywords(sections: MarkdownSection[]): string[] {
+  const keywords = new Set<string>();
+  
+  for (const section of flattenSections(sections)) {
+    // Add section title words
+    section.title.split(/\s+/).forEach(word => {
+      if (word.length > 2) keywords.add(word.toLowerCase());
+    });
+    
+    // Extract code identifiers
+    for (const block of section.codeBlocks) {
+      // Function/method names
+      const funcMatches = block.value.match(/(?:function|const|let|var|def|class)\s+(\w+)/g);
+      if (funcMatches) {
+        funcMatches.forEach(m => {
+          const name = m.split(/\s+/)[1];
+          if (name && name.length > 2) keywords.add(name.toLowerCase());
+        });
+      }
+      
+      // Import names
+      const importMatches = block.value.match(/import\s+(?:\{[^}]+\}|\w+)/g);
+      if (importMatches) {
+        importMatches.forEach(m => {
+          const names = m.replace(/import\s+\{?|\}?/g, '').split(',');
+          names.forEach(n => {
+            const name = n.trim();
+            if (name.length > 2) keywords.add(name.toLowerCase());
+          });
+        });
+      }
+    }
+  }
+  
+  return Array.from(keywords).slice(0, 50); // Limit keywords
+}
+
+/**
+ * Extract keywords from a single section
+ */
+function extractSectionKeywords(section: MarkdownSection): string[] {
+  const keywords = new Set<string>();
+  
+  // Title words
+  section.title.split(/\s+/).forEach(word => {
+    if (word.length > 2) keywords.add(word.toLowerCase());
+  });
+  
+  // Code identifiers from this section
+  for (const block of section.codeBlocks) {
+    const funcMatches = block.value.match(/(?:function|const|let|var|def|class)\s+(\w+)/g);
+    if (funcMatches) {
+      funcMatches.forEach(m => {
+        const name = m.split(/\s+/)[1];
+        if (name && name.length > 2) keywords.add(name.toLowerCase());
+      });
+    }
+  }
+  
+  return Array.from(keywords).slice(0, 20);
+}
+
+/**
+ * Convert all sections to content string
+ */
+function sectionsToContent(sections: MarkdownSection[]): string {
+  const parts: string[] = [];
+  
+  for (const section of sections) {
+    if (section.title && section.title !== '_preamble') {
+      const prefix = '#'.repeat(section.level || 1);
+      parts.push(`${prefix} ${section.title}`);
+    }
+    if (section.content.length > 0) {
+      parts.push(section.content.join('\n'));
+    }
+    for (const block of section.codeBlocks) {
+      parts.push(`\`\`\`${block.lang}\n${block.value}\n\`\`\``);
+    }
+  }
+  
+  return parts.join('\n\n');
+}
+
+/**
+ * Extract all code examples from sections
+ */
+function extractAllCodeExamples(sections: MarkdownSection[]): CodeExample[] {
+  const examples: CodeExample[] = [];
+  
+  for (const section of flattenSections(sections)) {
+    for (const block of section.codeBlocks) {
+      examples.push({
+        language: block.lang || 'text',
+        code: block.value,
+        title: section.title !== '_preamble' ? section.title : undefined,
+      });
+    }
+  }
+  
+  return examples;
 }
 
 

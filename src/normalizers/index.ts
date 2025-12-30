@@ -47,6 +47,9 @@ export function normalizeSchema(
   // Normalize auth info
   const auth = normalizeAuth(parseResult.auth, config);
   
+  // Get resources (documentation)
+  const resources = parseResult.resources || [];
+  
   // Determine source type
   const sourceType = determineSourceType(sources);
   
@@ -55,6 +58,7 @@ export function normalizeSchema(
     endpoints,
     schemas,
     auth,
+    resources,
     source: {
       type: sourceType,
       files: sources,
@@ -62,7 +66,7 @@ export function normalizeSchema(
     },
   };
   
-  logger.debug(`Normalized schema: ${endpoints.length} endpoints, ${Object.keys(schemas).length} schemas`);
+  logger.debug(`Normalized schema: ${endpoints.length} endpoints, ${Object.keys(schemas).length} schemas, ${resources.length} resources`);
   
   return normalized;
 }
