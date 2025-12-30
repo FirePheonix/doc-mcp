@@ -1,12 +1,12 @@
 {
-  "name": "doc-mcp",
+  "name": "doc-mcpify",
   "version": "1.0.0",
   "description": "A framework that allows API providers to expose a fully compliant MCP server without writing MCP-specific code",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "bin": {
-    "doc-mcp": "dist/bin/doc-mcp.js"
+    "doc-mcpify": "dist/bin/doc-mcp.js"
   },
   "exports": {
     ".": {
@@ -40,8 +40,16 @@
     "express",
     "fastify"
   ],
-  "author": "",
+  "author": "FirePheonix",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FirePheonix/doc-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FirePheonix/doc-mcp/issues"
+  },
+  "homepage": "https://github.com/FirePheonix/doc-mcp#readme",
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
     "fastify": "^4.0.0",
