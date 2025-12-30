@@ -43,8 +43,27 @@ await docmcp({ docs: ['./docs/**/*.md', './src/**/*.{ts,tsx}'] });
 
 ## Installation
 
+### Full Package (All Parsers)
 ```bash
-npm install doc-mcp
+npm install doc-mcpify
+```
+
+### Lightweight Options (Install Only What You Need)
+```bash
+# For Markdown/MDX only
+npm install doc-mcpify  # Then use: import { docmcp } from 'doc-mcpify/md'
+
+# For TypeScript/TSX only (.ts, .tsx files)
+npm install doc-mcpify  # Then use: import { docmcp } from 'doc-mcpify/ts'
+
+# For JavaScript/JSX only (.js, .jsx files)
+npm install doc-mcpify  # Then use: import { docmcp } from 'doc-mcpify/js'
+
+# For OpenAPI/Swagger only
+npm install doc-mcpify  # Then use: import { docmcp } from 'doc-mcpify/openapi'
+
+# For MDX specifically (includes Markdown)
+npm install doc-mcpify  # Then use: import { docmcp } from 'doc-mcpify/mdx'
 ```
 
 ## Quick Start (3 Steps)
@@ -59,8 +78,9 @@ npm install doc-mcpify
 
 Create `mcp-server.mjs` in your project:
 
+**Option A: Full Package**
 ```javascript
-import docmcp from 'doc-mcpify';
+import { docmcp } from 'doc-mcpify';
 
 await docmcp({
   docs: [
@@ -72,8 +92,40 @@ await docmcp({
   port: 3001,
 });
 
-await docmcp.listen();
 console.log('✅ MCP Server running on http://localhost:3001');
+```
+
+**Option B: Lightweight (Markdown Only)**
+```javascript
+import { docmcp } from 'doc-mcpify/md';  // ✨ Only installs markdown parser
+
+await docmcp({
+  docs: ['./docs/**/*.md'],
+  standalone: true,
+  port: 3001,
+});
+```
+
+**Option C: TypeScript/TSX Only**
+```javascript
+import { docmcp } from 'doc-mcpify/ts';  // ✨ Supports .ts AND .tsx files
+
+await docmcp({
+  docs: ['./src/**/*.{ts,tsx}'],
+  standalone: true,
+  port: 3001,
+});
+```
+
+**Option D: React Components (JSX/TSX)**
+```javascript
+import { docmcp } from 'doc-mcpify/ts';  // ✨ Parses React components
+
+await docmcp({
+  docs: ['./components/**/*.{jsx,tsx}'],
+  standalone: true,
+  port: 3001,
+});
 ```
 
 ### Step 3: Connect to VS Code
@@ -137,7 +189,7 @@ Add to existing Express app:
 
 ```javascript
 import express from 'express';
-import docmcp from 'doc-mcpify';
+import { docmcp } from 'doc-mcpify';  // Or use /md, /ts, /openapi
 
 const app = express();
 
@@ -153,7 +205,7 @@ app.listen(3000);
 
 ```javascript
 import Fastify from 'fastify';
-import docmcp from 'doc-mcpify';
+import { docmcp } from 'doc-mcpify';  // Or use /md, /ts, /openapi
 
 const fastify = Fastify();
 
@@ -230,11 +282,25 @@ Once mounted, doc-mcp exposes the following endpoints:
   "documentation": {
     "type": "openapi",
     "sources": ["./openapi.yaml"]
-  }Common Use Cases
+  }## Common Use Cases
 
 ### UI Library Documentation
 
 ```javascript
+// Lightweight: Only markdown parser
+import { docmcp } from 'doc-mcpify/md';
+
+await docmcp({
+  docs: ['./docs/**/*.md'],
+  standalone: true,
+  port: 3001,
+});
+```
+
+```javascript
+// Full: Markdown + TypeScript components
+import { docmcp } from 'doc-mcpify';
+
 await docmcp({
   docs: [
     './docs/**/*.md',              // Markdown docs
@@ -253,6 +319,20 @@ await docmcp({
 ### API Documentation
 
 ```javascript
+// OpenAPI only (lightweight)
+import { docmcp } from 'doc-mcpify/openapi';
+
+await docmcp({
+  docs: ['./openapi.yaml'],
+  standalone: true,
+  port: 3001,
+});
+```
+
+```javascript
+// OpenAPI + Guides
+import { docmcp } from 'doc-mcpify';
+
 await docmcp({
   docs: [
     './openapi.yaml',    // API spec
@@ -266,6 +346,9 @@ await docmcp({
 ### SDK Documentation
 
 ```javascript
+// TypeScript SDK only
+import { docmcp } from 'doc-mcpify/ts';
+
 await docmcp({
   docs: [
     './README.md',
@@ -401,12 +484,14 @@ await docmcp({
 
 ## Supported File Types
 
-| Type | Extensions | What Gets Extracted |
-|------|-----------|---------------------|
-| **Markdown** | `.md`, `.mdx` | Code blocks, headings, content |
-| **TypeScript** | `.ts`, `.tsx` | Exports, JSDoc, types, interfaces |
-| **JavaScript** | `.js`, `.jsx`, `.mjs` | Exports, JSDoc, functions |
-| **OpenAPI** | `.yaml`, `.yml`, `.json` | Endpoints, schemas, auth | // Only include certain paths
+| Type | Extensions | What Gets Extracted | Import From |
+|------|-----------|---------------------|-------------|
+| **Markdown** | `.md`, `.mdx` | Code blocks, headings, content | `doc-mcpify/md` or `doc-mcpify/mdx` |
+| **TypeScript** | `.ts`, `.tsx` | Exports, JSDoc, types, interfaces | `doc-mcpify/ts` |
+| **JavaScript** | `.js`, `.jsx`, `.mjs` | Exports, JSDoc, functions | `doc-mcpify/js` |
+| **OpenAPI** | `.yaml`, `.yml`, `.json` | Endpoints, schemas, auth | `doc-mcpify/openapi` |
+
+> **Note:** Using subpath imports (like `/ts`, `/md`) only installs the dependencies needed for that parser, keeping your `node_modules` lightweight! // Only include certain paths
     include: ['/api/v1/*', '/public/*'],
     
     // Exclude internal endpoints

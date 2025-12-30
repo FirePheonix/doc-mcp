@@ -7,6 +7,7 @@
 
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import remarkMdx from 'remark-mdx';
 import { visit } from 'unist-util-visit';
 import type { Root, Heading, Code, Text, List } from 'mdast';
 import type {
@@ -40,7 +41,9 @@ interface MarkdownSection {
  * Parse a markdown file and extract API documentation
  */
 export async function parseMarkdown(content: string, filePath: string): Promise<ParseResult> {
-  const processor = unified().use(remarkParse);
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkMdx);
   const tree = processor.parse(content) as Root;
   
   // Build a structured representation of the markdown

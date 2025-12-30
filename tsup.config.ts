@@ -4,6 +4,11 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'bin/doc-mcp': 'src/bin/doc-mcp.ts',
+    md: 'src/md.ts',
+    mdx: 'src/mdx.ts',
+    js: 'src/js.ts',
+    ts: 'src/ts.ts',
+    openapi: 'src/openapi.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,
