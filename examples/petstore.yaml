@@ -1,0 +1,372 @@
+openapi: '3.0.3'
+info:
+  title: Sample Pet Store API
+  description: A sample API for demonstrating doc-mcp functionality
+  version: '1.0.0'
+  contact:
+    name: API Support
+    email: support@example.com
+    url: https://example.com/support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.petstore.example.com/v1
+    description: Production server
+  - url: https://staging-api.petstore.example.com/v1
+    description: Staging server
+
+tags:
+  - name: pets
+    description: Pet operations
+  - name: store
+    description: Store operations
+  - name: users
+    description: User operations
+
+paths:
+  /pets:
+    get:
+      tags:
+        - pets
+      operationId: listPets
+      summary: List all pets
+      description: Returns a list of all pets in the store
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of pets to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of pets to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          description: Filter by pet status
+          required: false
+          schema:
+            type: string
+            enum: [available, pending, sold]
+      responses:
+        '200':
+          description: A list of pets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pet'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '400':
+          description: Invalid parameters
+        '500':
+          description: Internal server error
+
+    post:
+      tags:
+        - pets
+      operationId: createPet
+      summary: Create a new pet
+      description: Adds a new pet to the store
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePet'
+            example:
+              name: Fluffy
+              species: cat
+              age: 3
+      responses:
+        '201':
+          description: Pet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '400':
+          description: Invalid pet data
+        '401':
+          description: Unauthorized
+
+  /pets/{petId}:
+    get:
+      tags:
+        - pets
+      operationId: getPet
+      summary: Get a pet by ID
+      description: Returns a single pet by its ID
+      parameters:
+        - name: petId
+          in: path
+          description: ID of the pet to retrieve
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '404':
+          description: Pet not found
+
+    put:
+      tags:
+        - pets
+      operationId: updatePet
+      summary: Update a pet
+      description: Updates an existing pet
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePet'
+      responses:
+        '200':
+          description: Pet updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '404':
+          description: Pet not found
+
+    delete:
+      tags:
+        - pets
+      operationId: deletePet
+      summary: Delete a pet
+      description: Removes a pet from the store
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Pet deleted
+        '404':
+          description: Pet not found
+
+  /store/inventory:
+    get:
+      tags:
+        - store
+      operationId: getInventory
+      summary: Get store inventory
+      description: Returns the current inventory counts by status
+      responses:
+        '200':
+          description: Inventory counts
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+
+  /users:
+    post:
+      tags:
+        - users
+      operationId: createUser
+      summary: Create a user
+      description: Creates a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      tags:
+        - users
+      operationId: getUser
+      summary: Get user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authorization header
+
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for accessing the store
+
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+        - name
+        - species
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique pet identifier
+        name:
+          type: string
+          description: Pet's name
+          example: Fluffy
+        species:
+          type: string
+          description: Type of animal
+          example: cat
+        breed:
+          type: string
+          description: Pet's breed
+          example: Persian
+        age:
+          type: integer
+          minimum: 0
+          description: Pet's age in years
+        status:
+          type: string
+          enum: [available, pending, sold]
+          description: Pet's availability status
+        createdAt:
+          type: string
+          format: date-time
+          description: When the pet was added
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the pet was last updated
+
+    CreatePet:
+      type: object
+      required:
+        - name
+        - species
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        species:
+          type: string
+        breed:
+          type: string
+        age:
+          type: integer
+          minimum: 0
+
+    UpdatePet:
+      type: object
+      properties:
+        name:
+          type: string
+        breed:
+          type: string
+        age:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [available, pending, sold]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateUser:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+security:
+  - bearerAuth: []
