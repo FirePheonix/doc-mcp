@@ -13,6 +13,7 @@ import type {
   Logger,
 } from '../../types';
 import { createMcpHandlers, getMcpRoutes } from '../router';
+import { addMcpSseEndpoint } from './sse';
 
 
 // Fastify Adapter
@@ -31,7 +32,7 @@ export function createFastifyAdapter(
   const routes = getMcpRoutes(config.basePath);
   
   // Mount routes on the Fastify instance
-  mountFastifyRoutes(fastify, handlers, routes, logger);
+  mountFastifyRoutes(fastify, handlers, routes, logger, schema, config);
   
   return {
     type: 'fastify',
@@ -59,7 +60,7 @@ export function createStandaloneFastify(
   const routes = getMcpRoutes(config.basePath);
   
   // Mount routes
-  mountFastifyRoutes(fastify, handlers, routes, logger);
+  mountFastifyRoutes(fastify, handlers, routes, logger, schema, config);
   
   // Add root route with MCP info
   fastify.get('/', async () => {
@@ -67,11 +68,18 @@ export function createStandaloneFastify(
       name: 'doc-mcp',
       version: '1.0.0',
       description: 'MCP Server for API Documentation',
-      endpoints: routes.map(r => ({
-        method: r.method,
-        path: r.path,
-        description: r.description,
-      })),
+      endpoints: [
+        ...routes.map(r => ({
+          method: r.method,
+          path: r.path,
+          description: r.description,
+        })),
+        {
+          method: 'GET',
+          path: `${config.basePath}/sse`,
+          description: 'Server-Sent Events endpoint for MCP protocol',
+        },
+      ],
     };
   });
   
@@ -85,7 +93,9 @@ function mountFastifyRoutes(
   fastify: FastifyInstance,
   handlers: McpHandlers,
   routes: ReturnType<typeof getMcpRoutes>,
-  logger: Logger
+  logger: Logger,
+  schema?: NormalizedSchema,
+  config?: ResolvedConfig
 ): void {
   for (const route of routes) {
     const handler = createFastifyHandler(handlers[route.handler], route.handler);
@@ -103,6 +113,12 @@ function mountFastifyRoutes(
     }, handler);
     
     logger.debug(`Mounted Fastify route: ${route.method} ${route.path}`);
+  }
+  
+  // Add SSE endpoint for MCP-over-HTTP protocol
+  if (schema && config) {
+    addMcpSseEndpoint(fastify, schema, config);
+    logger.debug(`Mounted SSE endpoint: GET ${config.basePath}/sse`);
   }
 }
 

@@ -14,6 +14,7 @@ import type {
 } from '../../types';
 import { createExpressAdapter, createExpressMiddleware } from './express';
 import { createFastifyAdapter, createStandaloneFastify, createFastifyPlugin } from './fastify';
+import { addMcpSseEndpoint } from './sse';
 
 
 // Adapter Factory
@@ -88,4 +89,5 @@ export {
   createFastifyAdapter,
   createStandaloneFastify,
   createFastifyPlugin,
+  addMcpSseEndpoint,
 };
