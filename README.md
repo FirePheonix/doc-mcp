@@ -1,4 +1,9 @@
-# doc-mcp
+<img width="1240" height="319" alt="image" src="https://github.com/user-attachments/assets/acb25e83-33c6-4278-937d-a0ef35f59540" />
+
+
+
+doc-mcpify is an npm package that turns your existing documentation, APIs, and source code into an MCP (Model Context Protocol) server that AI assistants like Copilot and Cursor can query directly. Instead of forcing developers (or AI) to manually search through Markdown files, OpenAPI specs, or TypeScript code, doc-mcpify parses everything—docs, components, hooks, types, endpoints—and exposes it through standardized MCP endpoints so AI can fetch exact answers, code snippets, and schemas on demand. With just a few lines of setup, it supports multiple formats (Markdown, MDX, TS/JS, OpenAPI), works standalone or inside Express/Fastify, and lets AI ask natural-language questions like “Show me the Button component code” or “What are the Modal props?”—making your documentation instantly machine-readable, searchable, and developer-friendly.
+
 
 **Make your documentation queryable by AI assistants like Copilot and Cursor.**
 
